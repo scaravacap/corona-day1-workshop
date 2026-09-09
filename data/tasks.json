@@ -78,10 +78,10 @@
           "title": "C. Habilitar Anomaly Detection en el schema",
           "steps": [
             "Abre Catalog y navega a corona_workshop.operaciones.",
-            "Abre la pestaña Quality.",
-            "En Anomaly Detection selecciona Enable.",
-            "Confirma el alcance del schema y guarda la configuración.",
+            "Abre la pestaña Details y busca Data Quality Monitoring.",
+            "Selecciona Enable, activa Anomaly detection y guarda la configuración.",
             "Repite el recorrido en corona_workshop.clientes si quieres comparar un schema operacional con uno de referencia.",
+            "Selecciona View results o abre Catalog, Govern y Data Quality Monitoring.",
             "Vuelve a Governance Hub y confirma que la cobertura cambió."
           ],
           "note": "Anomaly Detection aprende la cadencia de commits para medir freshness y completeness. Un schema recién creado no tendrá suficiente historia durante el taller. El estado inicial sin anomalías es el resultado correcto.",
