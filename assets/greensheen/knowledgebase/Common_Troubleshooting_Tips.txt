@@ -1,0 +1,8 @@
+🔧 Common Troubleshooting Tips (All Products)
+
+| Issue                         | Cause                                      | Solution                                         |
+|------------------------------|--------------------------------------------|--------------------------------------------------|
+| Paint peeling                | Poor surface prep / high moisture          | Advise cleaning, drying, and priming surfaces    |
+| Uneven finish / streaks      | Over-brushing or poor roller technique     | Recommend high-quality tools and even strokes    |
+| Bubbling/blistering          | Painted on hot surface or damp substrate   | Let surface dry and repaint under optimal conditions |
+| Long dry time                | High humidity or thick application         | Encourage thinner coats and longer intervals     |

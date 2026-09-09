@@ -1,0 +1,436 @@
+{
+  "workshop": {
+    "title": "Corona Databricks Day 1 Workshop",
+    "eyebrow": "Deep Dive Medellín · Día 1",
+    "subtitle": "Cuatro tareas prácticas para recorrer gobierno de datos, Agent Bricks, gobierno de LLMs y Databricks Apps. Yo te guío por cada clic y ustedes construyen los resultados en su propio workspace.",
+    "catalog": "corona_workshop",
+    "setupNotebook": "notebooks/01_setup_workshop.py",
+    "estimatedMinutes": 250,
+    "dataNotice": "Todos los datos de Corona y GreenSheen en este taller son sintéticos."
+  },
+  "tasks": [
+    {
+      "id": "governance",
+      "index": 1,
+      "title": "Gobierno: consumo, calidad y clasificación",
+      "subtitle": "Importa el dashboard de consumo y activa controles en Unity Catalog.",
+      "product": "Governance Hub",
+      "icon": "🛡️",
+      "color": "#315AA6",
+      "estimatedMinutes": 75,
+      "mode": "GUI",
+      "description": "En esta tarea conectamos Governance Hub con tres preguntas de Corona: cuánto consumimos, qué datos perdieron calidad y dónde existe información sensible. No usamos Genie Code.",
+      "outcomes": [
+        "Dashboard de consumo importado y conectado a un SQL warehouse.",
+        "Anomaly Detection habilitado sobre un schema operacional.",
+        "Perfil de calidad con una línea base y un incidente visible.",
+        "Data Classification habilitado sobre datos sintéticos con PII."
+      ],
+      "prerequisites": [
+        "Ejecuta notebooks/01_setup_workshop.py con compute serverless.",
+        "Confirma que existe corona_workshop.operaciones.produccion_calidad.",
+        "Para el dashboard de consumo necesitas acceso a system.billing y a los demás schemas de sistema usados por el archivo.",
+        "Para configurar clasificación o calidad necesitas ser propietario del objeto o tener MANAGE."
+      ],
+      "sections": [
+        {
+          "title": "A. Importar el dashboard de consumo",
+          "intro": "El archivo incluido tiene 28 datasets y 7 páginas. Consulta system.billing.usage, precios, workspaces, compute, Lakeflow y Model Serving.",
+          "steps": [
+            "En GitHub abre dashboards/Account_Usage_Dashboard_v2.lvdash.json y descárgalo con Download raw file.",
+            "En Databricks abre SQL y luego Dashboards.",
+            "Selecciona Create dashboard y después Import dashboard from file.",
+            "Carga Account_Usage_Dashboard_v2.lvdash.json.",
+            "Abre el borrador importado y elige un SQL warehouse serverless en la esquina superior derecha.",
+            "Abre Global Filters. Empieza con todos los workspaces, DBUs y los últimos 30 días.",
+            "Selecciona Refresh. Revisa Usage Overview, Top N, Tag Matching, Top Objects y Costo por Usuario.",
+            "Si una página falla, abre el dataset afectado y confirma el acceso al system schema indicado en el error.",
+            "Cuando el tablero esté listo, selecciona Publish. Comparte CAN VIEW con la audiencia y reserva CAN EDIT para sus propietarios."
+          ],
+          "note": "Free Edition puede importar el archivo, pero su historial de billing puede estar vacío o algunos system schemas pueden no estar disponibles. Ese resultado no invalida el archivo para el workspace empresarial de Corona.",
+          "docs": [
+            {
+              "label": "Importar un AI/BI dashboard",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/dashboards/tutorials/import-dashboard"
+            },
+            {
+              "label": "Referencia de system.billing",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/admin/system-tables/billing"
+            }
+          ]
+        },
+        {
+          "title": "B. Ver la salud desde Governance Hub",
+          "steps": [
+            "En la barra lateral abre Governance y luego Governance Hub.",
+            "Abre la página Data para ver cobertura de clasificación y salud de calidad.",
+            "Usa el selector de metastore o workspace si tienes más de uno.",
+            "Toma una captura del estado inicial. La compararás después de habilitar los controles."
+          ],
+          "docs": [
+            {
+              "label": "Governance Hub",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/admin/governance-hub/"
+            }
+          ]
+        },
+        {
+          "title": "C. Habilitar Anomaly Detection en el schema",
+          "steps": [
+            "Abre Catalog y navega a corona_workshop.operaciones.",
+            "Abre la pestaña Quality.",
+            "En Anomaly Detection selecciona Enable.",
+            "Confirma el alcance del schema y guarda la configuración.",
+            "Repite el recorrido en corona_workshop.clientes si quieres comparar un schema operacional con uno de referencia.",
+            "Vuelve a Governance Hub y confirma que la cobertura cambió."
+          ],
+          "note": "Anomaly Detection aprende la cadencia de commits para medir freshness y completeness. Un schema recién creado no tendrá suficiente historia durante el taller. El estado inicial sin anomalías es el resultado correcto.",
+          "docs": [
+            {
+              "label": "Data Quality Monitoring",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/data-quality-monitoring/"
+            }
+          ]
+        },
+        {
+          "title": "D. Crear un perfil de calidad y provocar un incidente",
+          "steps": [
+            "Abre la tabla corona_workshop.operaciones.produccion_calidad.",
+            "Abre Quality y selecciona Create quality monitor o Create profile.",
+            "Elige Time series profile.",
+            "Usa fecha_evento como timestamp y 1 day como granularidad.",
+            "Agrega planta, linea y familia_producto como expresiones de segmentación.",
+            "Usa corona_workshop.operaciones como output schema y crea el perfil.",
+            "Selecciona Refresh y espera a que la primera ejecución termine.",
+            "Revisa tasa_defectos, temperatura_proceso_c, energia_kwh_ton, toneladas_producidas y la fracción de SKU nulo.",
+            "Ejecuta notebooks/02_inject_quality_incident.py.",
+            "Vuelve al perfil, selecciona Refresh y compara Línea base contra Incidente."
+          ],
+          "expected": "Sabaneta, Horno-2 muestra una subida simultánea en defectos, temperatura, energía y SKU nulo. La combinación cuenta una historia operacional, no cuatro alertas aisladas.",
+          "docs": [
+            {
+              "label": "Data profiling",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/data-quality-monitoring/data-profiling/"
+            }
+          ]
+        },
+        {
+          "title": "E. Habilitar Data Classification",
+          "steps": [
+            "Abre Catalog y selecciona el catálogo corona_workshop.",
+            "En Details, busca Data Classification y selecciona Enable.",
+            "Elige Only selected schemas.",
+            "Incluye clientes y greensheen. Excluye assets porque solo contiene archivos de soporte.",
+            "Guarda la configuración y abre View results.",
+            "Selecciona Trigger full scan si quieres forzar una revisión completa.",
+            "Revisa detecciones de nombres, correos, teléfonos, documentos, ubicaciones y datos financieros enmascarados.",
+            "Abre una clase y revisa Detected Columns y User Access.",
+            "Si las detecciones son correctas, activa Automatic tagging para esa clase.",
+            "Vuelve a Governance Hub y revisa el porcentaje de cobertura."
+          ],
+          "note": "Las tablas nuevas suelen clasificarse dentro de las siguientes 24 horas. Si la primera pantalla está vacía, confirma que el scan está activo y continúa con las otras tareas.",
+          "docs": [
+            {
+              "label": "Data Classification",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/data-classification"
+            },
+            {
+              "label": "Tags soportados",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/data-classification-tags"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agent-bricks",
+      "index": 2,
+      "title": "Agent Bricks con GreenSheen",
+      "subtitle": "Construye extracción, búsqueda, coaching y un supervisor.",
+      "product": "Agent Bricks",
+      "icon": "🧱",
+      "color": "#2D7D46",
+      "estimatedMinutes": 75,
+      "mode": "GUI",
+      "description": "GreenSheen es un fabricante ficticio de pinturas sostenibles. Replicarás los cuatro casos del demo: cuentas por pagar, soporte, coaching de llamadas y un bot que combina historial con documentación.",
+      "outcomes": [
+        "Information Extraction sobre facturas de proveedores.",
+        "Knowledge Assistant sobre manuales y preguntas frecuentes.",
+        "Custom LLM para analizar llamadas y producir coaching.",
+        "Supervisor Agent que combina Genie y el Knowledge Assistant."
+      ],
+      "prerequisites": [
+        "Ejecuta notebooks/01_setup_workshop.py.",
+        "Confirma 117 filas en corona_workshop.greensheen.invoice_text.",
+        "Confirma los archivos bajo /Volumes/corona_workshop/assets/greensheen_files.",
+        "Confirma las tablas customers, customer_orders, knowledge_base y call_transcripts.",
+        "Knowledge Assistant no está soportado en Free Edition. Allí puedes validar los datos y los modelos fundacionales, pero debes ejecutar el flujo completo en un workspace habilitado de Corona."
+      ],
+      "sections": [
+        {
+          "title": "A. Information Extraction para facturas",
+          "steps": [
+            "Abre AI/ML y luego Agent Bricks.",
+            "Selecciona Information Extraction y Create.",
+            "Nombra el agente GreenSheen Invoice Extractor.",
+            "Selecciona corona_workshop.greensheen.invoice_text como tabla de entrada.",
+            "Usa text como columna de entrada y document_id como identificador.",
+            "Define el resultado con supplier_name, invoice_number, purchase_order_number, invoice_date, due_date, payment_terms, subtotal, shipping, tax, total_due y line_items.",
+            "Define line_items como una lista con item_code, description, quantity, unit_price y amount.",
+            "Genera ejemplos, corrige al menos tres resultados y ejecuta Evaluation.",
+            "Si tienes 100 o más ejemplos listos, inicia Optimize. No esperes en vivo: la optimización puede tomar horas.",
+            "Prueba la fila HandwrittenInvoice1 antes de desplegar el endpoint."
+          ],
+          "codeLabel": "Consulta de prueba después del deploy",
+          "code": "WITH query_results AS (\n  SELECT\n    text AS input,\n    ai_query(\n      '<nombre-del-endpoint>',\n      text,\n      failOnError => false\n    ) AS response\n  FROM corona_workshop.greensheen.invoice_text\n  WHERE document_type = 'handwritten_jpg'\n)\nSELECT\n  input,\n  response.result AS response,\n  response.errorMessage AS error\nFROM query_results;",
+          "expected": "La factura manuscrita devuelve PO 2123456, subtotal 350.00, impuesto 24.50, total 374.50 y dos line items.",
+          "docs": [
+            {
+              "label": "Information Extraction",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/agents/agent-bricks/information-extraction"
+            }
+          ]
+        },
+        {
+          "title": "B. Knowledge Assistant para soporte",
+          "steps": [
+            "Vuelve a Agent Bricks y selecciona Knowledge Assistant.",
+            "Nombra el agente GreenSheen Product Expert.",
+            "Agrega una fuente tipo Files.",
+            "Usa /Volumes/corona_workshop/assets/greensheen_files/knowledgebase/ como ruta.",
+            "Inicia la sincronización y espera hasta que la fuente muestre Ready.",
+            "Pregunta: How long does the rust protection last with RustBlock Enamel?",
+            "Pregunta: How does GreenSheen site visit work?",
+            "Pregunta: Is NatureTint Base suitable for high-traffic areas?",
+            "Agrega una guideline: para preguntas de envío, confirma cantidad, origen, destino y si el pedido tiene custom tinting antes de dar un plazo.",
+            "Prueba: How much time will it take to ship 600 gallons from New Jersey to California? El agente debe pedir la aclaración de custom tinting."
+          ],
+          "docs": [
+            {
+              "label": "Knowledge Assistant",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/agents/agent-bricks/knowledge-assistant"
+            }
+          ]
+        },
+        {
+          "title": "C. Custom LLM para coaching de llamadas",
+          "steps": [
+            "En Agent Bricks selecciona Custom LLM.",
+            "Nombra el agente GreenSheen Call Coach.",
+            "Selecciona corona_workshop.greensheen.call_transcript_training.",
+            "Usa transcript como entrada y coaching_reference como ejemplo de salida.",
+            "Describe el rol como Customer Service Training and Quality Manager.",
+            "Pide cinco bloques: resumen y sentimiento, fortalezas, oportunidades con evidencia, notas de coaching y uso en onboarding.",
+            "Exige que cualquier feedback de producto o proceso tenga evidencia y una razón para escalarlo.",
+            "Ejecuta Evaluation y revisa que cada afirmación incluya un fragmento de la llamada.",
+            "Inicia Optimize solo si puedes dejar el proceso corriendo. La tabla trae más de 100 ejemplos."
+          ],
+          "codeLabel": "Descripción del agente",
+          "code": "You are a Customer Service Training and Quality Manager. Given a call transcript between a customer and a service agent, identify interaction patterns, coaching opportunities and best practices. Produce: a concise call summary and customer sentiment; agent strengths and improvement areas backed by direct evidence; coaching notes for the manager; practical onboarding or training suggestions; and product or process feedback that deserves escalation. If no improvement area is apparent, state that clearly and explain why.",
+          "docs": [
+            {
+              "label": "Custom LLM",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/agents/agent-bricks/custom-llm"
+            }
+          ]
+        },
+        {
+          "title": "D. Supervisor Agent con historial y documentación",
+          "steps": [
+            "Crea un Genie Space llamado GreenSheen Order History.",
+            "Agrega corona_workshop.greensheen.customers y customer_orders.",
+            "Documenta la relación customer_id y prueba una pregunta sobre Jane Doe de Vesta Builders.",
+            "Vuelve a Agent Bricks y selecciona Multi-Agent Supervisor.",
+            "Nombra el supervisor GreenSheen Smart Support.",
+            "Agrega GreenSheen Order History como herramienta Genie.",
+            "Agrega GreenSheen Product Expert como herramienta Knowledge Assistant.",
+            "Pega las instrucciones de enrutamiento incluidas abajo.",
+            "Prueba: I have Jane Doe from Vesta Builders online. Can EcoGuard_Primer be tinted?",
+            "Abre el trace. Confirma que el supervisor consultó primero el historial y después la documentación."
+          ],
+          "codeLabel": "Instrucciones del supervisor",
+          "code": "You are a support agent helping customers with GreenSheen products. Before responding, always check the customer's order history. Confirm whether the customer purchased the product, its version, purchase date and prior support notes. Use that context to personalize and ground the answer. Refer to product documentation only when the customer purchased the product or when the documentation is clearly relevant. Be concise, accurate and helpful.",
+          "expected": "El supervisor confirma que Jane Doe compró EcoGuard_Primer Low VOC v3 y combina ese dato con el manual para responder sobre tintado.",
+          "docs": [
+            {
+              "label": "Multi-Agent Supervisor",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/agents/agent-bricks/multi-agent-supervisor"
+            },
+            {
+              "label": "Genie",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/genie/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-gateway",
+      "index": 3,
+      "title": "Rate limits y protección de PII",
+      "subtitle": "Aplica límites, guardrails y pruebas a un modelo fundacional.",
+      "product": "Unity AI Gateway",
+      "icon": "🚦",
+      "color": "#6B4FA1",
+      "estimatedMinutes": 35,
+      "mode": "GUI + SQL",
+      "description": "Configurarás controles en un modelo disponible en tu workspace. El objetivo no es bloquear por bloquear: ustedes definirán quién puede usar el modelo, cuánto y qué contenido puede circular.",
+      "outcomes": [
+        "Un límite global y un límite por usuario.",
+        "Detección de PII para entradas y salidas.",
+        "Una política de temas permitidos alineada al ejercicio.",
+        "Pruebas permitidas y bloqueadas con evidencia."
+      ],
+      "prerequisites": [
+        "En Free Edition se verificaron estos modelos de chat: GPT OSS 120B y 20B, Qwen3 Next 80B, Qwen3.5 122B, Llama 4 Maverick, Gemma 3 12B, Llama 3.1 8B y Llama 3.3 70B.",
+        "Usa databricks-gpt-oss-120b para seguir el mismo camino de la Tarea 4.",
+        "Necesitas CAN MANAGE sobre el endpoint o MANAGE sobre el Model Service.",
+        "Las service policies actuales están en Beta y un account admin debe habilitarlas. Free Edition no tiene Account Console, por eso allí usarás el panel AI Gateway del endpoint para rate limits y PII."
+      ],
+      "sections": [
+        {
+          "title": "A. Elegir el camino disponible",
+          "steps": [
+            "Busca AI Gateway en la barra lateral.",
+            "Si ves Models y un Model Service gobernado, usa el camino actual de Unity Gateway: abre el servicio y trabaja en Overview, Rate limits y Policies.",
+            "Si trabajas en Free Edition, abre AI/ML, Serving y databricks-gpt-oss-120b. Después abre AI Gateway.",
+            "Mantén abierto Chat in playground para ejecutar las pruebas.",
+            "No uses Valid topics ni Invalid keywords del endpoint. Esas opciones pertenecen al API anterior y están deprecadas."
+          ],
+          "docs": [
+            {
+              "label": "Unity AI Gateway",
+              "url": "https://docs.databricks.com/aws/en/ai-gateway/"
+            },
+            {
+              "label": "Límites de Free Edition",
+              "url": "https://docs.databricks.com/aws/en/getting-started/free-edition-limitations"
+            }
+          ]
+        },
+        {
+          "title": "B. Configurar rate limits",
+          "steps": [
+            "En Rate limits agrega Service o Endpoint con 60 QPM.",
+            "Agrega User (Default) con 10 QPM.",
+            "Agrega User (Default) con 20.000 TPM.",
+            "Guarda y confirma que los tres límites aparecen en el servicio correcto.",
+            "Explica con tu grupo qué límite protegería costo y cuál evitaría que un solo consumidor monopolice el endpoint."
+          ],
+          "note": "QPM significa requests por minuto y TPM significa tokens por minuto. Cuando ambos aplican, gana el límite más restrictivo. Un exceso devuelve HTTP 429. Estos valores sirven para el laboratorio, no para producción.",
+          "docs": [
+            {
+              "label": "Rate limits",
+              "url": "https://docs.databricks.com/aws/en/ai-gateway/rate-limits"
+            }
+          ]
+        },
+        {
+          "title": "C. Proteger PII y contenido",
+          "steps": [
+            "En un Model Service, abre Policies y selecciona New policy. En Free Edition, abre Guardrails dentro de AI Gateway.",
+            "Agrega PII redaction para la entrada si quieres reemplazar nombres, correos, teléfonos, tarjetas y direcciones antes de llamar al modelo.",
+            "Agrega PII blocking para la salida si quieres impedir que una respuesta con PII llegue a la aplicación.",
+            "Agrega Unsafe Content para entrada y salida.",
+            "En el camino de Model Service, usa Rank 1 para la política de entrada y confirma las fases Input guardrails y Output guardrails.",
+            "Espera un par de minutos para la propagación y abre el Playground.",
+            "Prueba un prompt permitido: Resume las señales de calidad del Horno-2 y propone preguntas para el supervisor de turno.",
+            "Prueba con datos ficticios: Mi correo es prueba@clientes.example.com y mi documento es 1000000037. Resume mi solicitud.",
+            "Confirma que la entrada fue redactada o bloqueada según la opción elegida.",
+            "Captura el evento y revisa el mensaje que recibirá una aplicación cuando actúe la política."
+          ],
+          "note": "No pegues información real de clientes, empleados o credenciales durante la prueba.",
+          "docs": [
+            {
+              "label": "Service policies",
+              "url": "https://docs.databricks.com/aws/en/ai-gateway/moderate-tutorial"
+            }
+          ]
+        },
+        {
+          "title": "D. Limitar los temas con una service policy",
+          "steps": [
+            "Usa este bloque solo si Corona tiene las funciones Beta de Unity Gateway habilitadas.",
+            "Abre SQL Editor, selecciona un warehouse serverless y crea la función del bloque.",
+            "Vuelve al Model Service y abre Policies.",
+            "Selecciona New policy, asigna el nombre corona-allowed-topics y elige Custom.",
+            "Selecciona corona_workshop.ai_governance.allow_corona_topics.",
+            "Marca solo Input guardrails, usa Rank 10 y crea la política.",
+            "Prueba una pregunta sobre calidad y otra sobre un tema no permitido. La segunda debe devolver la razón de bloqueo."
+          ],
+          "codeLabel": "Service policy de temas permitidos",
+          "code": "CREATE SCHEMA IF NOT EXISTS corona_workshop.ai_governance;\n\nCREATE OR REPLACE FUNCTION corona_workshop.ai_governance.allow_corona_topics(event VARIANT)\nRETURNS VARIANT\nLANGUAGE SQL\nRETURN CASE\n  WHEN event:type::string = 'request'\n    AND NOT (\n      contains(lower(event:context.message::string), 'calidad') OR\n      contains(lower(event:context.message::string), 'producción') OR\n      contains(lower(event:context.message::string), 'consumo') OR\n      contains(lower(event:context.message::string), 'mantenimiento') OR\n      contains(lower(event:context.message::string), 'sostenibilidad') OR\n      contains(lower(event:context.message::string), 'documentación técnica')\n    )\n  THEN to_variant_object(named_struct(\n    'result', 'DENY',\n    'reason', 'Este servicio solo atiende calidad, producción, recursos, mantenimiento, sostenibilidad y documentación técnica.'\n  ))\n  ELSE to_variant_object(named_struct('result', 'ALLOW', 'reason', ''))\nEND;",
+          "note": "Las service policies están en Beta al 2 de septiembre de 2026. El account admin debe habilitar Unity Gateway Beta desde Previews. Free Edition no ofrece ese panel, así que esta parte se valida en el workspace de Corona.",
+          "docs": [
+            {
+              "label": "Crear y probar políticas",
+              "url": "https://docs.databricks.com/aws/en/ai-gateway/moderate-tutorial"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "genie-app",
+      "index": 4,
+      "title": "App de decisiones de calidad",
+      "subtitle": "Usa Genie Code para crear una app con datos operacionales y un LLM.",
+      "product": "Databricks Apps",
+      "icon": "✨",
+      "color": "#E46A2C",
+      "estimatedMinutes": 65,
+      "mode": "Genie Code",
+      "description": "Esta es la única tarea con Genie Code. Construirás una sala de control que combina KPIs de producción con un briefing generado por un modelo fundacional.",
+      "outcomes": [
+        "Databricks App desplegada desde Genie Code.",
+        "Filtros de planta, línea y rango de fechas.",
+        "KPIs y tendencias con procedencia visible.",
+        "Briefing de turno generado por un LLM y limitado a los datos consultados."
+      ],
+      "prerequisites": [
+        "Ejecuta notebooks/01_setup_workshop.py y, si quieres mostrar el incidente, 02_inject_quality_incident.py.",
+        "Confirma que tienes un SQL warehouse serverless.",
+        "Confirma el nombre de un Foundation Model API endpoint de chat.",
+        "Abre Genie Code desde el workspace."
+      ],
+      "prompt": "Actúa como desarrollador de datos para Corona. Construye y despliega una Databricks App llamada corona-quality-copilot. La app será un Centro de Decisiones de Calidad para supervisores de planta.\n\nDATOS\n- corona_workshop.operaciones.produccion_calidad\n- corona_workshop.operaciones.consumo_recursos\n\nEXPERIENCIA\n- Encabezado con el título Centro de Decisiones de Calidad y una nota visible: Datos sintéticos para taller.\n- Filtros de planta, línea y rango de fechas.\n- Cuatro KPIs: toneladas producidas, tasa de defectos, energía kWh por tonelada y porcentaje de SKU nulo. Cada KPI debe mostrar período, unidad, comparación contra el período anterior, fecha de actualización y tabla fuente.\n- Un gráfico temporal que compare tasa de defectos y energía, más una tabla con los lotes que requieren revisión.\n- Un botón Generar briefing de turno. Al seleccionarlo, agrega los datos filtrados en SQL, arma un contexto corto y llama a un Foundation Model API endpoint de chat disponible en este workspace. Empieza con databricks-gpt-oss-120b si existe; si no existe, descubre otro endpoint de chat disponible y usa su nombre como recurso de la app.\n- El briefing debe responder en español con cuatro secciones: situación, señales con cifras, hipótesis para investigar y tres acciones siguientes. No debe inventar causas. Debe decir Datos insuficientes cuando el contexto no soporte una conclusión.\n- Muestra el contexto numérico enviado al modelo dentro de un panel expandible y agrega la nota Contenido generado por IA, verifique antes de actuar.\n\nARQUITECTURA Y SEGURIDAD\n- Usa el SQL warehouse mediante un recurso de la Databricks App con permiso CAN_USE.\n- Usa el serving endpoint mediante un recurso con permiso CAN_QUERY.\n- No escribas tokens, host, warehouse ID ni endpoint ID en el código. Lee los valores inyectados por los recursos.\n- Ejecuta las consultas como el service principal de la app y explica esa identidad en la interfaz.\n- Limita cada consulta a agregados y a un máximo de 100 lotes de detalle.\n- Agrega estados explícitos de loading, empty y error. Si el modelo falla, conserva los KPIs y muestra el error junto al botón para reintentar.\n\nDISEÑO\n- Usa el azul Corona #315AA6, blanco y grises neutros. Reserva naranja #E46A2C para alertas.\n- Diseño responsive, contraste accesible y navegación por teclado.\n- No uses em dash en ningún texto visible.\n\nVALIDACIÓN\n- Prueba las consultas SQL antes de conectar la interfaz.\n- Valida que Sabaneta y Horno-2 muestren el incidente después de ejecutar notebooks/02_inject_quality_incident.py.\n- Valida el proyecto, despliega la app y entrégame la URL final.",
+      "sections": [
+        {
+          "title": "A. Construir con Genie Code",
+          "steps": [
+            "Abre Genie Code.",
+            "Selecciona el modelo de código disponible en tu Free Edition.",
+            "Copia el prompt completo de esta tarjeta.",
+            "Revisa el plan antes de aceptar cambios.",
+            "Cuando Genie Code pregunte por recursos, selecciona tu SQL warehouse y el endpoint de chat.",
+            "Pide que ejecute primero las consultas y después construya la interfaz.",
+            "Corrige cualquier permiso faltante antes de desplegar."
+          ]
+        },
+        {
+          "title": "B. Probar el resultado",
+          "steps": [
+            "Abre la URL de la app.",
+            "Filtra Sabaneta y Horno-2.",
+            "Confirma que la fecha de actualización y las tablas fuente están visibles.",
+            "Selecciona Generar briefing de turno.",
+            "Abre el contexto enviado al modelo y confirma que las cifras coinciden con los KPIs.",
+            "Cambia a un rango sin datos y confirma el estado empty.",
+            "Revoca temporalmente el acceso al endpoint solo si controlas el workspace de prueba. Confirma que los KPIs siguen visibles y que la app muestra un error recuperable.",
+            "Restaura el permiso y completa la tarea."
+          ],
+          "docs": [
+            {
+              "label": "Databricks Apps",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/"
+            },
+            {
+              "label": "Foundation Model APIs",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
