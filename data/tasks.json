@@ -128,7 +128,7 @@
             "Si las detecciones son correctas, activa Automatic tagging para esa clase.",
             "Vuelve a Governance Hub y revisa el porcentaje de cobertura."
           ],
-          "note": "Las tablas nuevas suelen clasificarse dentro de las siguientes 24 horas. Si la primera pantalla está vacía, confirma que el scan está activo y continúa con las otras tareas.",
+          "note": "Las tablas nuevas suelen clasificarse dentro de las siguientes 24 horas. La cuenta Free Edition usada para validar el taller no pudo activar el scan porque el modelo requerido no estaba disponible. Los datos quedaron listos, pero esta parte debe ejecutarse en el workspace de Corona si tu Free Edition muestra el mismo límite.",
           "docs": [
             {
               "label": "Data Classification",
@@ -156,12 +156,12 @@
       "outcomes": [
         "Information Extraction sobre facturas de proveedores.",
         "Knowledge Assistant sobre manuales y preguntas frecuentes.",
-        "Custom LLM para analizar llamadas y producir coaching.",
+        "Information Extraction para analizar llamadas y producir coaching estructurado.",
         "Supervisor Agent que combina Genie y el Knowledge Assistant."
       ],
       "prerequisites": [
         "Ejecuta notebooks/01_setup_workshop.py.",
-        "Confirma 117 filas en corona_workshop.greensheen.invoice_text.",
+        "Confirma 107 filas en corona_workshop.greensheen.invoice_text.",
         "Confirma los archivos bajo /Volumes/corona_workshop/assets/greensheen_files.",
         "Confirma las tablas customers, customer_orders, knowledge_base y call_transcripts.",
         "La cuenta Free Edition usada para este taller muestra Knowledge Assistant en Agents. Si tu cuenta no lo muestra, confirma el rollout o el entitlement antes de empezar."
@@ -213,24 +213,26 @@
           ]
         },
         {
-          "title": "C. Custom LLM para coaching de llamadas",
+          "title": "C. Inteligencia de llamadas y coaching",
           "steps": [
-            "En Agent Bricks selecciona Custom LLM.",
-            "Nombra el agente GreenSheen Call Coach.",
+            "En Agents selecciona Information Extraction y Create.",
+            "Nombra el agente GreenSheen Call Coach Extractor.",
             "Selecciona corona_workshop.greensheen.call_transcript_training.",
-            "Usa transcript como entrada y coaching_reference como ejemplo de salida.",
-            "Describe el rol como Customer Service Training and Quality Manager.",
-            "Pide cinco bloques: resumen y sentimiento, fortalezas, oportunidades con evidencia, notas de coaching y uso en onboarding.",
-            "Exige que cualquier feedback de producto o proceso tenga evidencia y una razón para escalarlo.",
+            "Usa transcript como entrada. Si la UI permite un dataset etiquetado, usa coaching_reference como ejemplo de salida.",
+            "Define un esquema con call_summary, customer_sentiment, agent_strengths, improvement_areas, coaching_notes, training_suggestions, escalation_required y escalation_evidence.",
+            "Describe el rol como Customer Service Training and Quality Manager y pega la instrucción incluida abajo.",
+            "Exige evidencia textual para fortalezas, áreas de mejora y cualquier escalación.",
             "Ejecuta Evaluation y revisa que cada afirmación incluya un fragmento de la llamada.",
-            "Inicia Optimize solo si puedes dejar el proceso corriendo. La tabla trae más de 100 ejemplos."
+            "Inicia Optimize solo si puedes dejar el proceso corriendo. La tabla trae 120 ejemplos.",
+            "Si tu workspace todavía muestra el tile Custom LLM del deck original, puedes repetir el mismo caso allí y comparar ambos resultados."
           ],
           "codeLabel": "Descripción del agente",
           "code": "You are a Customer Service Training and Quality Manager. Given a call transcript between a customer and a service agent, identify interaction patterns, coaching opportunities and best practices. Produce: a concise call summary and customer sentiment; agent strengths and improvement areas backed by direct evidence; coaching notes for the manager; practical onboarding or training suggestions; and product or process feedback that deserves escalation. If no improvement area is apparent, state that clearly and explain why.",
+          "note": "El deck de febrero usa Custom LLM. En la interfaz de Free Edition validada el 9 de septiembre de 2026 ese tile ya no aparece y el caso se implementa con Information Extraction. El resultado funcional se mantiene sin usar Genie Code.",
           "docs": [
             {
-              "label": "Custom LLM",
-              "url": "https://learn.microsoft.com/en-us/azure/databricks/agents/agent-bricks/custom-llm"
+              "label": "Information Extraction",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/agents/agent-bricks/information-extraction"
             }
           ]
         },
@@ -285,18 +287,23 @@
         "En Free Edition se verificaron estos modelos de chat: GPT OSS 120B y 20B, Qwen3 Next 80B, Qwen3.5 122B, Llama 4 Maverick, Gemma 3 12B, Llama 3.1 8B y Llama 3.3 70B.",
         "Usa databricks-gpt-oss-120b para seguir el mismo camino de la Tarea 4.",
         "Necesitas CAN MANAGE sobre el endpoint o MANAGE sobre el Model Service.",
-        "Las service policies actuales están en Beta y un account admin debe habilitarlas. Free Edition no tiene Account Console, por eso allí usarás el panel AI Gateway del endpoint para rate limits y PII."
+        "Para crear un Model Service necesitas USE CATALOG, USE SCHEMA, CREATE SERVICE y EXECUTE sobre el modelo.",
+        "Las service policies actuales están en Beta. Úsalas si aparece la pestaña Policies; si no aparece, completa rate limits y PII desde AI Gateway en el endpoint."
       ],
       "sections": [
         {
-          "title": "A. Elegir el camino disponible",
+          "title": "A. Crear el Model Service del taller",
           "steps": [
-            "Busca AI Gateway en la barra lateral.",
-            "Si ves Models y un Model Service gobernado, usa el camino actual de Unity Gateway: abre el servicio y trabaja en Overview, Rate limits y Policies.",
-            "Si trabajas en Free Edition, abre AI/ML, Serving y databricks-gpt-oss-120b. Después abre AI Gateway.",
+            "Abre AI Gateway en la barra lateral y selecciona Create.",
+            "Elige Model service.",
+            "Usa el catálogo corona_workshop, el schema ai_governance y el nombre quality_chat.",
+            "Selecciona GPT OSS 120B como Primary destination.",
+            "Crea el servicio y abre su Overview.",
             "Mantén abierto Chat in playground para ejecutar las pruebas.",
+            "Si la creación de Model Service no aparece, abre AI/ML, Serving y databricks-gpt-oss-120b. Después usa AI Gateway en el endpoint.",
             "No uses Valid topics ni Invalid keywords del endpoint. Esas opciones pertenecen al API anterior y están deprecadas."
           ],
+          "note": "Este flujo se validó en la cuenta Free Edition del taller. El servicio corona_workshop.ai_governance.quality_chat quedó creado sobre system.ai.gpt-oss-120b.",
           "docs": [
             {
               "label": "Unity AI Gateway",
@@ -342,8 +349,12 @@
           "note": "No pegues información real de clientes, empleados o credenciales durante la prueba.",
           "docs": [
             {
+              "label": "Sensitive Data Detection",
+              "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/service-policies/detect-sensitive-data"
+            },
+            {
               "label": "Service policies",
-              "url": "https://docs.databricks.com/aws/en/ai-gateway/moderate-tutorial"
+              "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/service-policies/"
             }
           ]
         },

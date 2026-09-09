@@ -30,12 +30,14 @@ import numpy as np
 import pandas as pd
 import requests
 from pypdf import PdfReader
+from pyspark.sql import functions as F
 
 CATALOG = "corona_workshop"
 ASSET_SCHEMA = "assets"
 OPERATIONS_SCHEMA = "operaciones"
 CUSTOMER_SCHEMA = "clientes"
 GREENSHEEN_SCHEMA = "greensheen"
+AI_GOVERNANCE_SCHEMA = "ai_governance"
 ASSET_URL = (
     "https://raw.githubusercontent.com/scaravacap/"
     "corona-day1-workshop/main/assets/greensheen_demo.zip"
@@ -58,7 +60,13 @@ print(f"Paquete GreenSheen: {asset_url}")
 # COMMAND ----------
 
 spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
-for schema in [ASSET_SCHEMA, OPERATIONS_SCHEMA, CUSTOMER_SCHEMA, GREENSHEEN_SCHEMA]:
+for schema in [
+    ASSET_SCHEMA,
+    OPERATIONS_SCHEMA,
+    CUSTOMER_SCHEMA,
+    GREENSHEEN_SCHEMA,
+    AI_GOVERNANCE_SCHEMA,
+]:
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{schema}")
 
 spark.sql(
@@ -170,8 +178,12 @@ df_production.loc[bad_rate_idx, "tasa_defectos"] = 1.25
 temp_outlier_idx = rng.choice(df_production.index, 15, replace=False)
 df_production.loc[temp_outlier_idx, "temperatura_proceso_c"] = 1510.0
 
+production_sdf = spark.createDataFrame(
+    df_production.drop(columns=["incidente_id"])
+).withColumn("incidente_id", F.lit(None).cast("string"))
+
 (
-    spark.createDataFrame(df_production)
+    production_sdf
     .write.mode("overwrite")
     .option("overwriteSchema", "true")
     .saveAsTable(f"{CATALOG}.{OPERATIONS_SCHEMA}.produccion_calidad")

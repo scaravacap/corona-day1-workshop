@@ -74,9 +74,10 @@ El notebook crea:
 - `corona_workshop.greensheen.call_transcript_training`
 - `corona_workshop.greensheen.customers`
 - `corona_workshop.greensheen.customer_orders`
+- `corona_workshop.ai_governance`
 - `/Volumes/corona_workshop/assets/greensheen_files/`
 
-El paquete GreenSheen incluye 116 facturas PDF, una factura manuscrita, cinco
+El paquete GreenSheen incluye 106 facturas PDF, una factura manuscrita, cinco
 transcripciones, manuales de producto y preguntas frecuentes. El notebook
 descarga el ZIP desde este repositorio, carga los archivos al volumen y crea las
 tablas de texto que usan los ejercicios.
@@ -123,7 +124,10 @@ Después:
 
 Anomaly Detection aprende la cadencia de commits para freshness y completeness.
 Un schema nuevo no genera una historia temporal instantánea. Data Classification
-también puede tardar hasta 24 horas en mostrar detecciones nuevas.
+también puede tardar hasta 24 horas en mostrar detecciones nuevas. En la cuenta
+Free Edition de validación, su activación devolvió `The required model is not
+available for this workspace`. Usa el workspace de Corona si tu cuenta muestra
+el mismo límite.
 
 Documentación:
 
@@ -136,12 +140,16 @@ La app guía cuatro casos de GreenSheen:
 
 - Information Extraction sobre facturas digitales y manuscritas.
 - Knowledge Assistant sobre manuales y preguntas frecuentes.
-- Custom LLM para análisis y coaching de llamadas.
+- Information Extraction para análisis y coaching estructurado de llamadas.
 - Multi-Agent Supervisor con Genie para historial de pedidos y un Knowledge Assistant para documentación.
 
 El caso final usa a Jane Doe de Vesta Builders y `EcoGuard_Primer`, igual que el
-flujo del demo de referencia. La tabla de entrenamiento trae 120 ejemplos para
-superar el mínimo del flujo de optimización de Custom LLM.
+flujo del demo de referencia. La tabla de entrenamiento trae 120 ejemplos.
+
+El deck original usa Custom LLM para el tercer caso. Ese tile no aparece en la
+interfaz de Free Edition validada el 9 de septiembre de 2026, así que el taller
+actual usa Information Extraction con un esquema de coaching. Si el workspace de
+Corona conserva Custom LLM, puedes ejecutar ambos y comparar.
 
 La cuenta Free Edition validada el 9 de septiembre de 2026 muestra Knowledge
 Assistant dentro de **Agents**. La página pública de limitaciones todavía afirma
@@ -153,6 +161,9 @@ pide confirmar el rollout si otra cuenta no muestra el tile.
 La cuenta Free Edition usada para la validación mostró ocho modelos de chat:
 GPT OSS 120B y 20B, Qwen3 Next 80B, Qwen3.5 122B, Llama 4 Maverick, Gemma 3 12B,
 Llama 3.1 8B y Llama 3.3 70B. El taller usa `databricks-gpt-oss-120b`.
+
+El flujo actual de Model Services también quedó validado en Free Edition. Se
+creó `corona_workshop.ai_governance.quality_chat` con GPT OSS 120B como destino.
 
 La app propone:
 
@@ -167,8 +178,9 @@ La app propone:
 `valid_topics` e `invalid_keywords` pertenecen al API anterior y están
 deprecados. El taller usa service policies en el camino actual de Unity Gateway.
 Estas políticas están en Beta al 2 de septiembre de 2026 y un account admin debe
-habilitarlas desde Previews. Free Edition no tiene Account Console, por eso allí
-solo puedes validar rate limits y los guardrails del endpoint.
+habilitarlas desde Previews. La cuenta Free Edition de validación expone Model
+Services en Unity Gateway; usa Policies si la pestaña está visible y, si no lo
+está, limita el ejercicio a rate limits y PII en el endpoint.
 
 Estos valores sirven para aprender el mecanismo. Una política de producción debe
 partir de demanda, latencia, presupuesto y criticidad.
