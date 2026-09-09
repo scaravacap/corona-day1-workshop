@@ -143,9 +143,10 @@ El caso final usa a Jane Doe de Vesta Builders y `EcoGuard_Primer`, igual que el
 flujo del demo de referencia. La tabla de entrenamiento trae 120 ejemplos para
 superar el mínimo del flujo de optimización de Custom LLM.
 
-Free Edition no soporta Knowledge Assistant. Puedes crear y revisar los datos
-allí, pero el flujo completo de Agent Bricks necesita un workspace habilitado de
-Corona.
+La cuenta Free Edition validada el 9 de septiembre de 2026 muestra Knowledge
+Assistant dentro de **Agents**. La página pública de limitaciones todavía afirma
+lo contrario, así que el taller usa la capacidad observada en el producto vivo y
+pide confirmar el rollout si otra cuenta no muestra el tile.
 
 ## Tarea 3: Unity AI Gateway
 

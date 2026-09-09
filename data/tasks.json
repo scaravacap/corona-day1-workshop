@@ -164,7 +164,7 @@
         "Confirma 117 filas en corona_workshop.greensheen.invoice_text.",
         "Confirma los archivos bajo /Volumes/corona_workshop/assets/greensheen_files.",
         "Confirma las tablas customers, customer_orders, knowledge_base y call_transcripts.",
-        "Knowledge Assistant no está soportado en Free Edition. Allí puedes validar los datos y los modelos fundacionales, pero debes ejecutar el flujo completo en un workspace habilitado de Corona."
+        "La cuenta Free Edition usada para este taller muestra Knowledge Assistant en Agents. Si tu cuenta no lo muestra, confirma el rollout o el entitlement antes de empezar."
       ],
       "sections": [
         {
