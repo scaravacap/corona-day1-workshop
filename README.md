@@ -11,9 +11,9 @@ convierte seis bloques en tareas ejecutables:
 6. Un Genie Agent de calidad, producción y recursos creado con Genie Code.
 
 Yo preparé el repositorio para que ustedes puedan seguir el taller desde una
-Databricks App y crear todos los datos con un solo notebook. Las tareas 4, 5 y 6
-usan Genie Code. La tarea 5 también incluye una solución funcional lista para
-importar como Databricks App.
+Databricks App y crear todos los datos con un solo notebook. Las tareas 4 y 6
+usan Genie Code. La tarea 5 usa una solución funcional lista para importar como
+Databricks App.
 
 Todos los datos son sintéticos.
 

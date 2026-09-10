@@ -5,7 +5,7 @@
     "subtitle": "Seis tareas prácticas para recorrer gobierno, agentes, serving operacional y Databricks Apps. Yo te guío por cada clic y ustedes construyen los resultados en su propio workspace.",
     "catalog": "corona_workshop",
     "setupNotebook": "notebooks/01_setup_workshop.py",
-    "estimatedMinutes": 380,
+    "estimatedMinutes": 355,
     "dataNotice": "Todos los datos de Corona y GreenSheen en este taller son sintéticos."
   },
   "tasks": [
@@ -451,9 +451,9 @@
       "product": "Lakebase + Databricks Apps",
       "icon": "⚡",
       "color": "#167D78",
-      "estimatedMinutes": 90,
-      "mode": "GUI + Genie Code",
-      "description": "Crearás un proyecto Lakebase, sincronizarás una tabla Delta hacia Postgres y compararás Lakebase Data API con Statement Execution API. El repositorio incluye una solución funcional para importar y usar como referencia.",
+      "estimatedMinutes": 65,
+      "mode": "GUI + código funcional",
+      "description": "Crearás un proyecto Lakebase, sincronizarás una tabla Delta hacia Postgres y desplegarás la solución funcional que compara Lakebase Data API con Statement Execution API.",
       "outcomes": [
         "Proyecto Lakebase Postgres Autoscaling con rama production.",
         "Synced table en modo Triggered con 4.500 lotes.",
@@ -538,55 +538,23 @@
           ]
         },
         {
-          "title": "D. Prompt de Genie Code para Lakebase Data API",
+          "title": "D. Crear la aplicación desde el código funcional",
           "steps": [
-            "Abre Genie Code dentro del Git Folder del taller.",
-            "Crea la carpeta corona-api-compare o usa solutions/lakebase-api-comparison-app como referencia.",
-            "Pega el prompt y revisa el plan antes de aceptar cambios.",
-            "Prueba primero con USE_MOCK_DATA=true.",
-            "No permitas que el token OAuth llegue al navegador. La llamada a Data API debe salir desde el backend."
-          ],
-          "codeLabel": "Prompt 1: camino Data API",
-          "code": "Construye una Databricks App FastAPI llamada corona-api-compare. El primer camino de lectura debe usar Lakebase Data API sobre public.produccion_calidad.\n\nREQUISITOS\n- Backend FastAPI y frontend estático responsive con branding Corona.\n- Endpoint GET /api/query/data-api con parámetros planta y limit, máximo 100.\n- Construye el Data API URL con PGHOST, PGDATABASE y DATABRICKS_WORKSPACE_ID inyectados por el recurso Postgres. Permite LAKEBASE_DATA_API_URL como override.\n- Obtén el bearer token en el backend con databricks.sdk.core.Config().authenticate(). Nunca lo envíes al cliente ni lo escribas en logs.\n- Llama por HTTP GET a /public/produccion_calidad con select explícito, planta=eq.<valor>, order=fecha_evento.desc,lote_id.asc y limit.\n- Usa Prefer: count=exact, captura Server-Timing y mide tiempo total con time.perf_counter().\n- Devuelve source, elapsed_ms, row_count, rows, request_id, server_timing y freshness.\n- Whitelist de plantas: Sabaneta, Sopó y Girardota.\n- Estados de loading, empty y error. Agrega USE_MOCK_DATA=true para desarrollo local.\n- app.yaml debe usar valueFrom: postgres con la clave postgres. No hardcodees tokens, hosts ni workspace IDs.",
-          "docs": [
-            {
-              "label": "Data API",
-              "url": "https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/data-api"
-            }
-          ]
-        },
-        {
-          "title": "E. Prompt de Genie Code para Statement Execution API",
-          "steps": [
-            "Continúa en la misma conversación de Genie Code.",
-            "Pega el segundo prompt para agregar el camino DBSQL.",
-            "Exige parámetros enlazados y row_limit. No concatenes filtros del usuario en SQL.",
-            "Mide desde la app, incluyendo espera y arranque del warehouse.",
-            "Ejecuta ambas rutas en paralelo y compara lote_id."
-          ],
-          "codeLabel": "Prompt 2: camino Statement Execution",
-          "code": "Extiende corona-api-compare con un segundo camino que use DBSQL Statement Execution API sobre corona_workshop.operaciones.produccion_calidad.\n\nREQUISITOS\n- Endpoint GET /api/query/statement-api con los mismos parámetros planta y limit.\n- Usa WorkspaceClient().api_client.do para POST /api/2.0/sql/statements.\n- Lee DATABRICKS_WAREHOUSE_ID desde valueFrom: sql-warehouse.\n- Consulta solo las columnas mostradas en el camino Data API, filtra con :planta y parameters. Usa row_limit para limitar filas y ORDER BY fecha_evento DESC, lote_id ASC para resolver empates de forma determinística.\n- format JSON_ARRAY, disposition INLINE, wait_timeout 50s. Si queda PENDING o RUNNING, consulta GET /api/2.0/sql/statements/{statement_id} hasta terminar o llegar a 55 segundos.\n- Convierte data_array a objetos usando manifest.schema.columns.\n- Devuelve source, elapsed_ms, row_count, rows, statement_id y freshness.\n- Agrega GET /api/compare que ejecute ambos caminos en paralelo con asyncio.gather y compare los lote_id.\n- En la UI muestra dos tarjetas de latencia, barras, paridad y una tabla de resultados.\n- Incluye esta advertencia: la medición compara experiencia end-to-end, no motores equivalentes. Lakebase lee una copia operacional y DBSQL consulta la fuente analítica.\n- Declara el warehouse con CAN_USE y el recurso Postgres con CAN_CONNECT_AND_CREATE.",
-          "docs": [
-            {
-              "label": "Statement Execution API",
-              "url": "https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sql-execution-tutorial"
-            }
-          ]
-        },
-        {
-          "title": "F. Importar la solución funcional",
-          "steps": [
-            "Abre solutions/lakebase-api-comparison-app.",
-            "Sigue el README en ese folder. El orden de creación del rol Data API es obligatorio.",
-            "Sincroniza la carpeta a /Workspace/Users/<correo>/corona-api-compare-src.",
-            "Crea corona-api-compare y agrega sql-warehouse.",
+            "En el Git Folder del taller abre solutions/lakebase-api-comparison-app y revisa README.md, app.yaml, main.py y frontend/index.html.",
+            "Desde una terminal ejecuta databricks sync para copiar esa carpeta a /Workspace/Users/<correo>/corona-api-compare-src.",
+            "Abre New, App, Custom y crea corona-api-compare usando la ruta sincronizada como source.",
+            "Agrega primero un recurso SQL warehouse con la clave sql-warehouse y permiso CAN_USE. No agregues todavía Postgres.",
+            "Copia service_principal_client_id desde los detalles de la app.",
             "Ejecuta setup/grant_data_api_access.sql con el service principal de la app.",
-            "Agrega postgres, despliega un snapshot y abre la URL.",
+            "Agrega el recurso Lakebase Postgres con la clave postgres, la rama production, la base databricks_postgres y CAN_CONNECT_AND_CREATE.",
+            "Despliega un snapshot desde corona-api-compare-src y abre la URL.",
             "Filtra Sabaneta, selecciona 25 filas y ejecuta ambos APIs.",
             "Abre Detalle técnico de los API Calls. Revisa método, URL, parámetros, body, response headers, manifest y filas recibidas.",
             "Copia un request y su response para explicar el flujo. Confirma que Authorization aparece como Bearer [REDACTED].",
             "Repite la prueba con compute caliente y compara con la primera ejecución."
           ],
+          "codeLabel": "Sincronizar y desplegar la solución",
+          "code": "databricks sync solutions/lakebase-api-comparison-app \\\n  /Workspace/Users/<correo>/corona-api-compare-src \\\n  --full --profile <perfil>\n\n# Después de agregar los recursos y ejecutar el grant:\ndatabricks apps deploy corona-api-compare \\\n  --source-code-path /Workspace/Users/<correo>/corona-api-compare-src \\\n  --mode SNAPSHOT --profile <perfil>",
           "expected": "La solución validada devolvió los mismos 25 lote_id. En una ejecución de referencia, Data API tardó 634,9 ms y Statement Execution 2.915,8 ms. Tus tiempos cambiarán con el estado de compute y la red.",
           "docs": [
             {
@@ -596,7 +564,7 @@
           ]
         },
         {
-          "title": "G. Interpretar la comparación",
+          "title": "E. Interpretar la comparación",
           "steps": [
             "Usa Data API para lookups, filtros, paginación y CRUD operacional de baja latencia.",
             "Usa Statement Execution para agregaciones, joins y análisis sobre la fuente de verdad en Delta.",
