@@ -582,6 +582,7 @@
       state.detailIndex = -1;
       history.replaceState(null, "", location.pathname);
       const workshop = state.workshop || {};
+      const genieCount = state.tasks.filter(task => task.mode.includes("Genie Code")).length;
       const cards = state.tasks.map(task => `
         <article
           class="task-card ${state.done.has(task.id) ? "done" : ""}"
@@ -614,8 +615,8 @@
             <div class="hero-stats">
               <div class="hero-stat"><strong>${state.tasks.length}</strong><span>tareas prácticas</span></div>
               <div class="hero-stat"><strong>${workshop.estimatedMinutes || 0}</strong><span>minutos estimados</span></div>
-              <div class="hero-stat"><strong>3</strong><span>tareas sin Genie Code</span></div>
-              <div class="hero-stat"><strong>1</strong><span>tarea con Genie Code</span></div>
+              <div class="hero-stat"><strong>${state.tasks.length - genieCount}</strong><span>tareas sin Genie Code</span></div>
+              <div class="hero-stat"><strong>${genieCount}</strong><span>tareas con Genie Code</span></div>
             </div>
           </div>
         </section>
@@ -633,7 +634,7 @@
 
           <div class="section-heading">
             <div>
-              <h2>Las cuatro tareas del día</h2>
+              <h2>Las tareas del día</h2>
               <p>${esc(workshop.dataNotice)}</p>
             </div>
             <div>
@@ -742,7 +743,7 @@
       document.querySelector("#app").innerHTML = `
         <section class="detail-hero" style="--detail-color:${esc(task.color)}">
           <div class="detail-hero-inner">
-            <button class="back" onclick="goHome()">← Volver a las cuatro tareas</button>
+            <button class="back" onclick="goHome()">← Volver a las tareas</button>
             <div class="detail-title-row">
               <div class="detail-title-wrap">
                 <span class="detail-icon" aria-hidden="true">${esc(task.icon)}</span>

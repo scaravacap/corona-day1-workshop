@@ -1,0 +1,4 @@
+databricks-sdk>=0.81.0,<1.0.0
+fastapi==0.115.5
+httpx==0.28.1
+uvicorn[standard]==0.32.1

@@ -1,16 +1,19 @@
 # Corona Databricks Day 1 Workshop
 
 Taller práctico para el día 1 del Deep Dive de Corona en Medellín. El contenido
-convierte cuatro bloques de la agenda en tareas ejecutables:
+convierte seis bloques en tareas ejecutables:
 
 1. Gobierno con Governance Hub, consumo, Data Quality Monitoring y Data Classification.
 2. Agent Bricks con los cuatro casos de la empresa ficticia GreenSheen.
 3. Gobierno de LLMs con rate limits, PII y temas en Unity AI Gateway.
 4. Una Databricks App creada con Genie Code, datos operacionales y un modelo fundacional.
+5. Reverse ETL hacia Lakebase y una app que compara Data API con Statement Execution API.
+6. Un Genie Agent de calidad, producción y recursos creado con Genie Code.
 
 Yo preparé el repositorio para que ustedes puedan seguir el taller desde una
-Databricks App y crear todos los datos con un solo notebook. Las tareas 1, 2 y 3
-usan la interfaz gráfica. Solo la tarea 4 usa Genie Code.
+Databricks App y crear todos los datos con un solo notebook. Las tareas 4, 5 y 6
+usan Genie Code. La tarea 5 también incluye una solución funcional lista para
+importar como Databricks App.
 
 Todos los datos son sintéticos.
 
@@ -31,6 +34,8 @@ corona-day1-workshop/
 │   └── 02_inject_quality_incident.py
 ├── dashboards/
 │   └── Account_Usage_Dashboard_v2.lvdash.json
+├── solutions/
+│   └── lakebase-api-comparison-app/
 └── assets/
     ├── greensheen_demo.zip
     └── greensheen/
@@ -200,6 +205,52 @@ Centro de Decisiones de Calidad que:
 El prompt no contiene tokens ni IDs de recursos. Genie Code debe declarar el SQL
 warehouse con `CAN_USE` y el serving endpoint con `CAN_QUERY`.
 
+## Tarea 5: Reverse ETL y comparación de APIs
+
+La tarea crea o reutiliza `projects/corona-reverse-etl`, registra su base como
+`corona_lakebase` y sincroniza:
+
+```text
+corona_workshop.operaciones.produccion_calidad
+  -> corona_lakebase.public.produccion_calidad
+```
+
+La synced table usa `lote_id` como primary key, CDF y modo `TRIGGERED`. La
+validación dejó 4.500 filas en ambos lados.
+
+Después se habilita Lakebase Data API para `public`, con máximo de 1.000 filas,
+OpenAPI y `Server-Timing`. La carpeta
+`solutions/lakebase-api-comparison-app/` contiene una FastAPI App completa que:
+
+- llama Data API con OAuth desde el backend;
+- llama Statement Execution API con una query parametrizada;
+- ejecuta ambos caminos en paralelo;
+- compara `lote_id`, filas, latencia y frescura;
+- limita cada respuesta a 100 filas;
+- incluye estados de loading, empty y error.
+
+En una ejecución validada, Data API devolvió 25 filas en 634,9 ms y Statement
+Execution en 2.915,8 ms, con paridad completa. Es una observación del camino
+end-to-end, no un SLA ni un benchmark entre motores equivalentes.
+
+Sigue el
+[README de la solución](solutions/lakebase-api-comparison-app/README.md) para
+importarla.
+
+## Tarea 6: Genie Agent de operaciones
+
+El último prompt adapta el Genie Agent de Avianca a dos fuentes de Corona:
+
+- `corona_workshop.operaciones.produccion_calidad`
+- `corona_workshop.operaciones.consumo_recursos`
+
+El Agent responde preguntas de defectos, producción, energía, agua y CO2.
+Documenta la relación por fecha y planta, descarta valores inválidos solo para
+KPIs operacionales y conserva esos valores para preguntas de calidad de datos.
+
+Los límites prohíben PII, atribuciones sobre empleados, causas raíz no
+demostradas y preguntas de margen, precio, ventas o forecast.
+
 ## Ejecutar la app localmente
 
 ```bash
@@ -225,3 +276,5 @@ curl http://localhost:8000/api/tasks/governance
 - [Agent Bricks Demo Setup Guide, GreenSheen](https://docs.google.com/presentation/d/1pLE3B8ih8cwGgQ-V3dFsuPdt7Q4v3t0WdNHz5lqXa3I/edit)
 - [Unity AI Gateway](https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/)
 - [Databricks Apps](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/)
+- [Lakebase Data API](https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/data-api)
+- [Statement Execution API](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sql-execution-tutorial)

@@ -2,10 +2,10 @@
   "workshop": {
     "title": "Corona Databricks Day 1 Workshop",
     "eyebrow": "Deep Dive Medellín · Día 1",
-    "subtitle": "Cuatro tareas prácticas para recorrer gobierno de datos, Agent Bricks, gobierno de LLMs y Databricks Apps. Yo te guío por cada clic y ustedes construyen los resultados en su propio workspace.",
+    "subtitle": "Seis tareas prácticas para recorrer gobierno, agentes, serving operacional y Databricks Apps. Yo te guío por cada clic y ustedes construyen los resultados en su propio workspace.",
     "catalog": "corona_workshop",
     "setupNotebook": "notebooks/01_setup_workshop.py",
-    "estimatedMinutes": 250,
+    "estimatedMinutes": 380,
     "dataNotice": "Todos los datos de Corona y GreenSheen en este taller son sintéticos."
   },
   "tasks": [
@@ -438,6 +438,233 @@
             {
               "label": "Foundation Model APIs",
               "url": "https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lakebase-serving",
+      "index": 5,
+      "title": "Reverse ETL y comparación de APIs",
+      "subtitle": "Sirve los mismos lotes desde Lakebase y DBSQL.",
+      "product": "Lakebase + Databricks Apps",
+      "icon": "⚡",
+      "color": "#167D78",
+      "estimatedMinutes": 90,
+      "mode": "GUI + Genie Code",
+      "description": "Crearás un proyecto Lakebase, sincronizarás una tabla Delta hacia Postgres y compararás Lakebase Data API con Statement Execution API. El repositorio incluye una solución funcional para importar y usar como referencia.",
+      "outcomes": [
+        "Proyecto Lakebase Postgres Autoscaling con rama production.",
+        "Synced table en modo Triggered con 4.500 lotes.",
+        "Data API habilitada con OAuth y Server-Timing.",
+        "Databricks App que ejecuta y mide ambos caminos.",
+        "Criterios para elegir serving operacional o consulta analítica."
+      ],
+      "prerequisites": [
+        "Ejecuta notebooks/01_setup_workshop.py y 02_inject_quality_incident.py.",
+        "Confirma 4.500 lote_id únicos y no nulos en corona_workshop.operaciones.produccion_calidad.",
+        "Necesitas permiso para crear un proyecto Lakebase, un catálogo y una synced table.",
+        "Necesitas CAN USE sobre un SQL warehouse para Statement Execution API.",
+        "Data API no admite al propietario de la base como identidad de consumo. La aplicación debe usar su service principal."
+      ],
+      "sections": [
+        {
+          "title": "A. Crear el proyecto Lakebase",
+          "steps": [
+            "Abre Lakebase y selecciona Create project.",
+            "Usa corona-reverse-etl como Project ID y Corona Reverse ETL como nombre.",
+            "Selecciona PostgreSQL 17 y conserva la capacidad mínima para el taller.",
+            "Crea el proyecto. Lakebase crea la rama production, el endpoint primary y la base databricks_postgres.",
+            "Abre Branches y confirma que production está READY.",
+            "Abre Computes y confirma que primary está activo o puede despertar desde scale-to-zero.",
+            "Si el proyecto corona-reverse-etl ya existe, reutilízalo y no crees un duplicado."
+          ],
+          "codeLabel": "Camino equivalente por CLI",
+          "code": "databricks postgres create-project corona-reverse-etl \\\n  --json '{\"spec\":{\"display_name\":\"Corona Reverse ETL\"}}' \\\n  --profile <perfil>\n\ndatabricks postgres list-branches \\\n  projects/corona-reverse-etl --profile <perfil>\n\ndatabricks postgres list-endpoints \\\n  projects/corona-reverse-etl/branches/production --profile <perfil>\n\ndatabricks postgres list-databases \\\n  projects/corona-reverse-etl/branches/production --profile <perfil>",
+          "docs": [
+            {
+              "label": "Lakebase projects",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/get-started"
+            }
+          ]
+        },
+        {
+          "title": "B. Habilitar reverse ETL con una synced table",
+          "steps": [
+            "Abre SQL Editor y crea corona_workshop.lakebase_sync.",
+            "Habilita Change Data Feed en corona_workshop.operaciones.produccion_calidad.",
+            "Valida que lote_id sea único y no nulo. Será la primary key del destino.",
+            "En el proyecto Lakebase registra databricks_postgres como el catálogo corona_lakebase.",
+            "Abre Synced tables y selecciona Create synced table.",
+            "Elige corona_workshop.operaciones.produccion_calidad como fuente.",
+            "Usa public.produccion_calidad como destino, lote_id como primary key y TRIGGERED como modo.",
+            "Usa corona_workshop.lakebase_sync para los metadatos de la pipeline.",
+            "Espera hasta ver SYNCED_TABLE_ONLINE_NO_PENDING_UPDATE.",
+            "Consulta corona_lakebase.public.produccion_calidad y confirma 4.500 filas."
+          ],
+          "codeLabel": "Configuración reproducible",
+          "code": "CREATE SCHEMA IF NOT EXISTS corona_workshop.lakebase_sync;\n\nALTER TABLE corona_workshop.operaciones.produccion_calidad\nSET TBLPROPERTIES (delta.enableChangeDataFeed = true);\n\n-- Después, desde Databricks CLI:\ndatabricks postgres create-catalog corona_lakebase \\\n  --json '{\"spec\":{\"postgres_database\":\"databricks_postgres\",\"branch\":\"projects/corona-reverse-etl/branches/production\"}}' \\\n  --profile <perfil>\n\ndatabricks postgres create-synced-table \\\n  corona_lakebase.public.produccion_calidad \\\n  --json '{\"spec\":{\"source_table_full_name\":\"corona_workshop.operaciones.produccion_calidad\",\"primary_key_columns\":[\"lote_id\"],\"scheduling_policy\":\"TRIGGERED\",\"branch\":\"projects/corona-reverse-etl/branches/production\",\"postgres_database\":\"databricks_postgres\",\"create_database_objects_if_missing\":true,\"new_pipeline_spec\":{\"storage_catalog\":\"corona_workshop\",\"storage_schema\":\"lakebase_sync\"}}}' \\\n  --profile <perfil>",
+          "note": "Synced tables era conocido como Reverse ETL. La copia en Postgres es de solo lectura: no ejecutes INSERT, UPDATE ni DELETE sobre public.produccion_calidad.",
+          "docs": [
+            {
+              "label": "Lakebase synced tables",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/sync-tables"
+            }
+          ]
+        },
+        {
+          "title": "C. Habilitar y proteger Lakebase Data API",
+          "steps": [
+            "Abre el proyecto corona-reverse-etl y entra a Data API.",
+            "Selecciona Enable Data API. Lakebase crea authenticator y el schema pgrst.",
+            "En Settings expón public, fija Maximum rows en 1000 y activa Server timing headers.",
+            "Activa OpenAPI si quieres inspeccionar el contrato en /openapi.json.",
+            "Crea primero la Custom App corona-api-compare con el recurso SQL warehouse, pero sin Postgres.",
+            "Copia service_principal_client_id de la app.",
+            "En Lakebase SQL Editor ejecuta setup/grant_data_api_access.sql con ese ID.",
+            "Después agrega el recurso Postgres a la app con la clave postgres y CAN_CONNECT_AND_CREATE.",
+            "Vuelve a Data API y selecciona Refresh schema cache.",
+            "No uses la identidad del propietario del proyecto para probar Data API. authenticator no puede asumir un rol con privilegios elevados."
+          ],
+          "codeLabel": "Permisos mínimos para la app",
+          "code": "CREATE EXTENSION IF NOT EXISTS databricks_auth;\n\nSELECT databricks_create_role(\n  '<APP_SERVICE_PRINCIPAL_CLIENT_ID>',\n  'SERVICE_PRINCIPAL'\n);\n\nGRANT \"<APP_SERVICE_PRINCIPAL_CLIENT_ID>\" TO authenticator;\nGRANT USAGE ON SCHEMA public TO \"<APP_SERVICE_PRINCIPAL_CLIENT_ID>\";\nGRANT SELECT ON TABLE public.produccion_calidad\n  TO \"<APP_SERVICE_PRINCIPAL_CLIENT_ID>\";",
+          "note": "El orden evita un fallo verificado. Si adjuntas Postgres antes de crear el rol para Data API, el propietario no recibe la opción administrativa necesaria para conceder el rol a authenticator.",
+          "docs": [
+            {
+              "label": "Lakebase Data API",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/data-api"
+            }
+          ]
+        },
+        {
+          "title": "D. Prompt de Genie Code para Lakebase Data API",
+          "steps": [
+            "Abre Genie Code dentro del Git Folder del taller.",
+            "Crea la carpeta corona-api-compare o usa solutions/lakebase-api-comparison-app como referencia.",
+            "Pega el prompt y revisa el plan antes de aceptar cambios.",
+            "Prueba primero con USE_MOCK_DATA=true.",
+            "No permitas que el token OAuth llegue al navegador. La llamada a Data API debe salir desde el backend."
+          ],
+          "codeLabel": "Prompt 1: camino Data API",
+          "code": "Construye una Databricks App FastAPI llamada corona-api-compare. El primer camino de lectura debe usar Lakebase Data API sobre public.produccion_calidad.\n\nREQUISITOS\n- Backend FastAPI y frontend estático responsive con branding Corona.\n- Endpoint GET /api/query/data-api con parámetros planta y limit, máximo 100.\n- Construye el Data API URL con PGHOST, PGDATABASE y DATABRICKS_WORKSPACE_ID inyectados por el recurso Postgres. Permite LAKEBASE_DATA_API_URL como override.\n- Obtén el bearer token en el backend con databricks.sdk.core.Config().authenticate(). Nunca lo envíes al cliente ni lo escribas en logs.\n- Llama por HTTP GET a /public/produccion_calidad con select explícito, planta=eq.<valor>, order=fecha_evento.desc,lote_id.asc y limit.\n- Usa Prefer: count=exact, captura Server-Timing y mide tiempo total con time.perf_counter().\n- Devuelve source, elapsed_ms, row_count, rows, request_id, server_timing y freshness.\n- Whitelist de plantas: Sabaneta, Sopó y Girardota.\n- Estados de loading, empty y error. Agrega USE_MOCK_DATA=true para desarrollo local.\n- app.yaml debe usar valueFrom: postgres con la clave postgres. No hardcodees tokens, hosts ni workspace IDs.",
+          "docs": [
+            {
+              "label": "Data API",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/data-api"
+            }
+          ]
+        },
+        {
+          "title": "E. Prompt de Genie Code para Statement Execution API",
+          "steps": [
+            "Continúa en la misma conversación de Genie Code.",
+            "Pega el segundo prompt para agregar el camino DBSQL.",
+            "Exige parámetros enlazados y row_limit. No concatenes filtros del usuario en SQL.",
+            "Mide desde la app, incluyendo espera y arranque del warehouse.",
+            "Ejecuta ambas rutas en paralelo y compara lote_id."
+          ],
+          "codeLabel": "Prompt 2: camino Statement Execution",
+          "code": "Extiende corona-api-compare con un segundo camino que use DBSQL Statement Execution API sobre corona_workshop.operaciones.produccion_calidad.\n\nREQUISITOS\n- Endpoint GET /api/query/statement-api con los mismos parámetros planta y limit.\n- Usa WorkspaceClient().api_client.do para POST /api/2.0/sql/statements.\n- Lee DATABRICKS_WAREHOUSE_ID desde valueFrom: sql-warehouse.\n- Consulta solo las columnas mostradas en el camino Data API, filtra con :planta y parameters. Usa row_limit para limitar filas y ORDER BY fecha_evento DESC, lote_id ASC para resolver empates de forma determinística.\n- format JSON_ARRAY, disposition INLINE, wait_timeout 50s. Si queda PENDING o RUNNING, consulta GET /api/2.0/sql/statements/{statement_id} hasta terminar o llegar a 55 segundos.\n- Convierte data_array a objetos usando manifest.schema.columns.\n- Devuelve source, elapsed_ms, row_count, rows, statement_id y freshness.\n- Agrega GET /api/compare que ejecute ambos caminos en paralelo con asyncio.gather y compare los lote_id.\n- En la UI muestra dos tarjetas de latencia, barras, paridad y una tabla de resultados.\n- Incluye esta advertencia: la medición compara experiencia end-to-end, no motores equivalentes. Lakebase lee una copia operacional y DBSQL consulta la fuente analítica.\n- Declara el warehouse con CAN_USE y el recurso Postgres con CAN_CONNECT_AND_CREATE.",
+          "docs": [
+            {
+              "label": "Statement Execution API",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sql-execution-tutorial"
+            }
+          ]
+        },
+        {
+          "title": "F. Importar la solución funcional",
+          "steps": [
+            "Abre solutions/lakebase-api-comparison-app.",
+            "Sigue el README en ese folder. El orden de creación del rol Data API es obligatorio.",
+            "Sincroniza la carpeta a /Workspace/Users/<correo>/corona-api-compare-src.",
+            "Crea corona-api-compare y agrega sql-warehouse.",
+            "Ejecuta setup/grant_data_api_access.sql con el service principal de la app.",
+            "Agrega postgres, despliega un snapshot y abre la URL.",
+            "Filtra Sabaneta, selecciona 25 filas y ejecuta ambos APIs.",
+            "Repite la prueba con compute caliente y compara con la primera ejecución."
+          ],
+          "expected": "La solución validada devolvió los mismos 25 lote_id. En una ejecución de referencia, Data API tardó 634,9 ms y Statement Execution 2.915,8 ms. Tus tiempos cambiarán con el estado de compute y la red.",
+          "docs": [
+            {
+              "label": "Código de la solución",
+              "url": "https://github.com/scaravacap/corona-day1-workshop/tree/main/solutions/lakebase-api-comparison-app"
+            }
+          ]
+        },
+        {
+          "title": "G. Interpretar la comparación",
+          "steps": [
+            "Usa Data API para lookups, filtros, paginación y CRUD operacional de baja latencia.",
+            "Usa Statement Execution para agregaciones, joins y análisis sobre la fuente de verdad en Delta.",
+            "Mide por separado cold start y warm path. No presentes una sola ejecución como SLA.",
+            "Revisa last_sync antes de interpretar diferencias entre filas.",
+            "Recuerda que los filtros y masks de Unity Catalog no se copian a la synced table. Aplica permisos y RLS en Postgres cuando el caso lo requiera.",
+            "Elige el patrón por acceso, consistencia, seguridad y costo, no solo por el número de milisegundos."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corona-genie-agent",
+      "index": 6,
+      "title": "Genie Agent de operaciones Corona",
+      "subtitle": "Preguntas de calidad, producción y recursos con límites explícitos.",
+      "product": "Genie Agent",
+      "icon": "🧞",
+      "color": "#7652A5",
+      "estimatedMinutes": 40,
+      "mode": "Genie Code",
+      "description": "Adaptarás el patrón del Genie Agent de Avianca para responder preguntas operacionales de Corona. El agente usa dos tablas enfocadas, SQL probado, definiciones claras y restricciones para no inventar causas ni exponer PII.",
+      "outcomes": [
+        "Genie Agent enfocado en operaciones de planta.",
+        "Dos fuentes con relación documentada por fecha y planta.",
+        "Preguntas de ejemplo y SQL verificado.",
+        "Reglas para datos inválidos, unidades y límites de respuesta.",
+        "GRANT documentados para una audiencia operacional."
+      ],
+      "prerequisites": [
+        "Confirma que produccion_calidad tiene 4.500 filas y consumo_recursos 360.",
+        "Usa el SQL warehouse serverless del taller.",
+        "Ejecuta el incidente para que Sabaneta y Horno-2 tengan una historia visible.",
+        "Este ejercicio usa tablas raw para seguir el patrón de Avianca. Para producción, mueve KPIs reutilizables a una Metric View gobernada."
+      ],
+      "prompt": "Actúa como propietario de datos de Corona. Usa Genie Code para crear un Genie Agent llamado Corona Operations Agent sobre estas fuentes:\n- corona_workshop.operaciones.produccion_calidad\n- corona_workshop.operaciones.consumo_recursos\n\nPROPÓSITO\nEl agente ayuda a líderes de planta y calidad a explorar producción, defectos, temperatura, humedad, energía, agua y CO2. Debe responder en español, incluir cifras y decir siempre el período consultado.\n\nSEMÁNTICA\n- produccion_calidad tiene una fila por lote, línea y turno.\n- consumo_recursos tiene una fila por fecha y planta.\n- Para combinar las tablas, agrega primero produccion_calidad por fecha_produccion y planta, después une con consumo_recursos por fecha_produccion = fecha y planta = planta. Es una relación many-to-one.\n- tasa_defectos es una fracción entre 0 y 1. Muéstrala como porcentaje.\n- Para KPIs operacionales excluye tasa_defectos fuera de 0 a 1 y toneladas_producidas negativas. Si preguntan por calidad de datos, cuenta esas filas en lugar de ocultarlas.\n- energia_kwh_ton en produccion_calidad es intensidad del proceso por lote.\n- electricidad_mwh * 1000 / toneladas_producidas en consumo_recursos es intensidad total diaria de planta. No mezcles ambas definiciones.\n- incidente_id nulo significa línea base. INC-CALIDAD-SABANETA identifica el incidente sintético.\n\nCONFIGURACIÓN\n- Agrega descripciones de tabla y column_configs durante la creación.\n- Activa format assistance y entity matching solo en planta, linea, turno, familia_producto y estado_calidad.\n- Conserva lote_id para detalle, pero no actives entity matching en IDs.\n- Agrega la relación compuesta por fecha y planta.\n- Prueba cada SQL antes de guardarlo.\n\nPREGUNTAS DE EJEMPLO\n1. ¿Cuál fue la tasa de defectos por planta en los últimos 30 días?\n2. ¿Qué planta tuvo mayor intensidad energética en los últimos 30 días?\n3. ¿Cuáles son los 10 lotes que requieren revisión con mayor tasa de defectos?\n4. ¿Qué cambió en Sabaneta durante el incidente del Horno-2?\n5. Compara producción, electricidad, agua y CO2 por planta durante los últimos 7 días.\n\nEJEMPLOS CON SQL\n- Guarda un ejemplo probado para defectos y toneladas por planta en 30 días. Usa AVG(CASE WHEN tasa_defectos BETWEEN 0 AND 1 THEN tasa_defectos END) y excluye toneladas negativas del total.\n- Guarda un ejemplo probado de intensidad energética con SUM(electricidad_mwh) * 1000 / SUM(toneladas_producidas).\n- Guarda un ejemplo probado de lotes en estado Revisar, limitado a 10.\n- Guarda un ejemplo probado con un CTE que agregue producción diaria antes de unir consumo_recursos por fecha y planta.\n\nLÍMITES\n- No incluyas las tablas clientes_sinteticos ni proveedores_sinteticos.\n- No muestres nombres, documentos, correos, teléfonos ni direcciones.\n- No atribuyas desempeño a empleados o turnos individuales.\n- No inventes la causa de un defecto. Presenta correlaciones como hipótesis para investigar.\n- No respondas sobre margen, precio, ventas o forecast porque esas medidas no están en las fuentes.\n- Si la pregunta pide algo fuera del alcance, responde que no está disponible en este agente.\n\nCIERRE\n- Agrega los GRANT requeridos para un grupo operacional: USE CATALOG, USE SCHEMA y SELECT sobre las dos fuentes.\n- Valida las cinco preguntas de ejemplo.\n- Entrega el nombre, el ID y la URL del Genie Agent.",
+      "sections": [
+        {
+          "title": "A. Crear el agente con Genie Code",
+          "steps": [
+            "Abre Genie Code y pega el prompt completo.",
+            "Revisa que seleccione solo produccion_calidad y consumo_recursos.",
+            "Confirma que crea column_configs durante la creación.",
+            "Revisa la relación compuesta por fecha y planta.",
+            "No aceptes una unión directa sin agregar primero produccion_calidad a grano diario.",
+            "Deja el Agent en modo borrador hasta validar los ejemplos."
+          ],
+          "docs": [
+            {
+              "label": "Crear Genie Agents",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/genie/"
+            }
+          ]
+        },
+        {
+          "title": "B. Probar las respuestas y los límites",
+          "steps": [
+            "Ejecuta las cinco preguntas del prompt.",
+            "Confirma que Sabaneta muestra 12,58% de defectos en la ventana de 30 días del dataset actual.",
+            "Confirma que Girardota muestra la mayor intensidad total, cerca de 648,2 kWh/t en esa ventana.",
+            "Pide la causa raíz del incidente. El agente debe presentar hipótesis, no afirmar una causa.",
+            "Pide el correo de un cliente. El agente debe decir que no está disponible.",
+            "Verifica que cada resumen diga el rango de fechas y las unidades.",
+            "Corrige descripciones o ejemplos estructurados antes de agregar texto libre."
+          ],
+          "note": "Los valores esperados cambian si regeneras los datos en otra fecha. Usa las queries verificadas por Genie Code como fuente de verdad.",
+          "docs": [
+            {
+              "label": "Buenas prácticas de Genie",
+              "url": "https://learn.microsoft.com/en-us/azure/databricks/genie/best-practices"
             }
           ]
         }

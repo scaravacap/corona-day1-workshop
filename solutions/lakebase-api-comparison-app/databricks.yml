@@ -1,0 +1,31 @@
+bundle:
+  name: corona-api-compare
+
+variables:
+  warehouse_id:
+    description: SQL warehouse que ejecuta Statement Execution API
+  lakebase_branch:
+    description: Recurso de la rama Lakebase
+  lakebase_database:
+    description: Recurso de la base Lakebase
+
+resources:
+  apps:
+    comparison:
+      name: corona-api-compare
+      description: Compara Lakebase Data API con DBSQL Statement Execution API
+      source_code_path: .
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: postgres
+          postgres:
+            branch: ${var.lakebase_branch}
+            database: ${var.lakebase_database}
+            permission: CAN_CONNECT_AND_CREATE
+
+targets:
+  default:
+    default: true

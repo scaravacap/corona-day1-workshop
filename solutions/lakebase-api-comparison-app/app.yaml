@@ -1,0 +1,19 @@
+command:
+  - python
+  - main.py
+
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: LAKEBASE_ENDPOINT
+    valueFrom: postgres
+  - name: LAKEHOUSE_CATALOG
+    value: corona_workshop
+  - name: LAKEHOUSE_SCHEMA
+    value: operaciones
+  - name: LAKEHOUSE_TABLE
+    value: produccion_calidad
+  - name: LAKEBASE_SCHEMA
+    value: public
+  - name: LAKEBASE_TABLE
+    value: produccion_calidad
