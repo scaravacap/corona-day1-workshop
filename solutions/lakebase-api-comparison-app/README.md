@@ -9,7 +9,9 @@ al consultar los mismos lotes por dos caminos:
 
 La interfaz ejecuta ambos requests en paralelo, muestra tiempo total, filas,
 identificador de request, `Server-Timing` cuando está disponible y paridad de
-los `lote_id`.
+los `lote_id`. Cada resultado incluye un drill-down con el request enviado,
+headers seguros, body, response headers, manifest y payload recibido.
+`Authorization` siempre aparece como `Bearer [REDACTED]`.
 
 Esta medición no es un benchmark entre motores. Data API lee una copia
 operacional sincronizada en Lakebase. Statement Execution ejecuta una consulta
@@ -115,7 +117,8 @@ Abre `http://localhost:8000` y selecciona **Ejecutar ambos APIs**.
 - `GET /api/config`: configuración y fuente de identidad.
 - `GET /api/query/data-api?planta=Sabaneta&limit=25`: Data API.
 - `GET /api/query/statement-api?planta=Sabaneta&limit=25`: Statement API.
-- `GET /api/compare?planta=Sabaneta&limit=25`: ejecución paralela y paridad.
+- `GET /api/compare?planta=Sabaneta&limit=25`: ejecución paralela, paridad y
+  detalle técnico de ambos calls.
 - `GET /api/health`: health check.
 
 La consulta DBSQL usa parámetros enlazados. Data API usa filtros PostgREST,

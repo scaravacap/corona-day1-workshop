@@ -226,6 +226,7 @@ OpenAPI y `Server-Timing`. La carpeta
 - llama Statement Execution API con una query parametrizada;
 - ejecuta ambos caminos en paralelo;
 - compara `lote_id`, filas, latencia y frescura;
+- permite inspeccionar y copiar requests y responses con Authorization redactado;
 - limita cada respuesta a 100 filas;
 - incluye estados de loading, empty y error.
 

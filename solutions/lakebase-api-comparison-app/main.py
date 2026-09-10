@@ -46,6 +46,12 @@ USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "false").lower() == "true"
 app = FastAPI(title="Corona Lakehouse vs Lakebase", version="1.0.0")
 
 
+class ApiCallError(RuntimeError):
+    def __init__(self, message: str, technical: dict[str, Any]):
+        super().__init__(message)
+        self.technical = technical
+
+
 def _workspace_client() -> WorkspaceClient:
     return WorkspaceClient()
 
@@ -139,7 +145,27 @@ def _run_statement_api(planta: str, limit: int) -> dict[str, Any]:
             path=f"/api/2.0/sql/statements/{response['statement_id']}",
         )
 
-    rows = _statement_rows(response)
+    technical = {
+        "request": {
+            "method": "POST",
+            "url": "/api/2.0/sql/statements",
+            "headers": {
+                "Authorization": "Bearer [REDACTED]",
+                "Content-Type": "application/json",
+            },
+            "body": payload,
+        },
+        "response": {
+            "status_code": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": response,
+        },
+    }
+    try:
+        rows = _statement_rows(response)
+    except RuntimeError as error:
+        raise ApiCallError(str(error), technical) from error
+
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
     return {
         "source": "Statement Execution API",
@@ -149,6 +175,7 @@ def _run_statement_api(planta: str, limit: int) -> dict[str, Any]:
         "request_id": response.get("statement_id"),
         "server_timing": None,
         "freshness": f"{CATALOG}.{SCHEMA}.{TABLE}",
+        "technical": technical,
     }
 
 
@@ -171,10 +198,47 @@ async def _run_data_api(planta: str, limit: int) -> dict[str, Any]:
             params=params,
         )
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-    response.raise_for_status()
-    rows = response.json()
+    try:
+        body = response.json()
+    except ValueError:
+        body = {"raw_text": response.text}
+
+    technical = {
+        "request": {
+            "method": "GET",
+            "url": str(response.request.url),
+            "headers": {
+                "Authorization": "Bearer [REDACTED]",
+                "Accept": "application/json",
+                "Prefer": "count=exact",
+            },
+            "query_parameters": params,
+        },
+        "response": {
+            "status_code": response.status_code,
+            "headers": {
+                key: value
+                for key, value in {
+                    "Content-Type": response.headers.get("content-type"),
+                    "Content-Range": response.headers.get("content-range"),
+                    "Server-Timing": response.headers.get("server-timing"),
+                    "X-Request-Id": response.headers.get("x-request-id"),
+                }.items()
+                if value is not None
+            },
+            "body": body,
+        },
+    }
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        raise ApiCallError(
+            f"Data API devolvió HTTP {response.status_code}.", technical
+        ) from error
+
+    rows = body
     if not isinstance(rows, list):
-        raise RuntimeError("Data API devolvió un payload inesperado.")
+        raise ApiCallError("Data API devolvió un payload inesperado.", technical)
 
     return {
         "source": "Lakebase Data API",
@@ -184,6 +248,7 @@ async def _run_data_api(planta: str, limit: int) -> dict[str, Any]:
         "request_id": response.headers.get("x-request-id"),
         "server_timing": response.headers.get("server-timing"),
         "freshness": f"{LAKEBASE_SCHEMA}.{LAKEBASE_TABLE} (synced table)",
+        "technical": technical,
     }
 
 
@@ -204,14 +269,73 @@ def _mock_result(source: str, planta: str, limit: int) -> dict[str, Any]:
         }
         for index in range(1, min(limit, 10) + 1)
     ]
+    is_data_api = source == "Lakebase Data API"
+    request = (
+        {
+            "method": "GET",
+            "url": (
+                "https://lakebase.example/api/2.0/workspace/123/rest/"
+                f"databricks_postgres/public/produccion_calidad?planta=eq.{planta}"
+            ),
+            "headers": {
+                "Authorization": "Bearer [REDACTED]",
+                "Accept": "application/json",
+                "Prefer": "count=exact",
+            },
+            "query_parameters": {
+                "planta": f"eq.{planta}",
+                "order": "fecha_evento.desc,lote_id.asc",
+                "limit": str(limit),
+            },
+        }
+        if is_data_api
+        else {
+            "method": "POST",
+            "url": "/api/2.0/sql/statements",
+            "headers": {
+                "Authorization": "Bearer [REDACTED]",
+                "Content-Type": "application/json",
+            },
+            "body": {
+                "warehouse_id": "[valueFrom: sql-warehouse]",
+                "statement": "SELECT ... WHERE planta = :planta",
+                "parameters": [
+                    {"name": "planta", "value": planta, "type": "STRING"}
+                ],
+                "row_limit": limit,
+            },
+        }
+    )
+    response = (
+        {
+            "status_code": 206,
+            "headers": {
+                "Content-Type": "application/json",
+                "Content-Range": f"0-{len(rows) - 1}/{len(rows)}",
+                "Server-Timing": "db;dur=18.2",
+            },
+            "body": rows,
+        }
+        if is_data_api
+        else {
+            "status_code": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": {
+                "statement_id": f"mock-{uuid.uuid4()}",
+                "status": {"state": "SUCCEEDED"},
+                "result": {"data_array": rows},
+            },
+        }
+    )
     return {
         "source": source,
-        "elapsed_ms": 42.7 if source == "Lakebase Data API" else 812.4,
+        "elapsed_ms": 42.7 if is_data_api else 812.4,
         "rows": rows,
         "row_count": len(rows),
         "request_id": f"mock-{uuid.uuid4()}",
-        "server_timing": "db;dur=18.2" if source == "Lakebase Data API" else None,
+        "server_timing": "db;dur=18.2" if is_data_api else None,
         "freshness": "Datos mock para desarrollo local",
+        "technical": {"request": request, "response": response},
     }
 
 
@@ -224,6 +348,7 @@ def _error_result(source: str, error: Exception) -> dict[str, Any]:
         "row_count": 0,
         "request_id": None,
         "server_timing": None,
+        "technical": getattr(error, "technical", None),
     }
 
 

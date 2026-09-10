@@ -583,6 +583,8 @@
             "Ejecuta setup/grant_data_api_access.sql con el service principal de la app.",
             "Agrega postgres, despliega un snapshot y abre la URL.",
             "Filtra Sabaneta, selecciona 25 filas y ejecuta ambos APIs.",
+            "Abre Detalle técnico de los API Calls. Revisa método, URL, parámetros, body, response headers, manifest y filas recibidas.",
+            "Copia un request y su response para explicar el flujo. Confirma que Authorization aparece como Bearer [REDACTED].",
             "Repite la prueba con compute caliente y compara con la primera ejecución."
           ],
           "expected": "La solución validada devolvió los mismos 25 lote_id. En una ejecución de referencia, Data API tardó 634,9 ms y Statement Execution 2.915,8 ms. Tus tiempos cambiarán con el estado de compute y la red.",
@@ -600,6 +602,7 @@
             "Usa Statement Execution para agregaciones, joins y análisis sobre la fuente de verdad en Delta.",
             "Mide por separado cold start y warm path. No presentes una sola ejecución como SLA.",
             "Revisa last_sync antes de interpretar diferencias entre filas.",
+            "Usa el drill-down para separar tiempo total, Server-Timing, estado del statement y contenido transferido.",
             "Recuerda que los filtros y masks de Unity Catalog no se copian a la synced table. Aplica permisos y RLS en Postgres cuando el caso lo requiera.",
             "Elige el patrón por acceso, consistencia, seguridad y costo, no solo por el número de milisegundos."
           ]
